@@ -18,6 +18,7 @@ import ir.amirab.util.compose.asStringSource
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlin.concurrent.Volatile
 
 class UpdateComponent(
     ctx: ComponentContext,
@@ -62,8 +63,13 @@ class UpdateComponent(
         showNewUpdate.update { true }
     }
 
-    fun requestCheckForUpdate() {
+    // một lần kiểm tra im lặng chỉ hiện thông báo khi có bản mới, không hiện "đang kiểm tra", "không có bản mới", hay lỗi
+    @Volatile
+    private var silentCheck = false
+
+    fun requestCheckForUpdate(silent: Boolean = false) {
         scope.launch {
+            silentCheck = silent
             updateManager.checkForUpdate()
         }
     }
@@ -76,22 +82,26 @@ class UpdateComponent(
         updateCheckStatus
             .drop(1) // state flow
             .onEach {
+                val silent = silentCheck
                 when (it) {
                     UpdateCheckStatus.Checking -> {
-                        sendEffect(Effects.CheckingForUpdate)
+                        if (!silent) sendEffect(Effects.CheckingForUpdate)
                     }
 
                     is UpdateCheckStatus.Error -> {
-                        sendEffect(Effects.Error(it.e))
+                        silentCheck = false
+                        if (!silent) sendEffect(Effects.Error(it.e))
                     }
 
                     UpdateCheckStatus.NewUpdate -> {
+                        silentCheck = false
                         sendEffect(Effects.NewUpdate)
                         showNewUpdate()
                     }
 
                     UpdateCheckStatus.NoUpdate -> {
-                        sendEffect(Effects.NoUpdate)
+                        silentCheck = false
+                        if (!silent) sendEffect(Effects.NoUpdate)
                     }
 
                     UpdateCheckStatus.IDLE -> {

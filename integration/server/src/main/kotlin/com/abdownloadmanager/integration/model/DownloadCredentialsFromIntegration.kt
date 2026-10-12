@@ -31,6 +31,16 @@ data class HLSDownloadCredentialsFromIntegration(
     override val suggestedName: String? = null,
 ) : IDownloadCredentialsFromIntegration
 
+@SerialName("ytdlp")
+@Serializable
+data class YtDlpDownloadCredentialsFromIntegration(
+    override val link: String,
+    override val downloadPage: String? = null,
+    override val suggestedName: String? = null,
+    /** id của preset yt-dlp: best, 1080, 720, 480, audio */
+    val formatPreset: String = "best",
+) : IDownloadCredentialsFromIntegration
+
 @Serializable
 data class AddDownloadOptionsFromIntegration(
     val silentAdd: Boolean = false,

@@ -219,6 +219,7 @@ class HomeComponent(
             +donate
             separator()
             +checkForUpdateAction
+            +checkYtDlpUpdateAction
             +openAboutAction
         }
     }.filterIsInstance<MenuItem.SubMenu>()

@@ -178,7 +178,8 @@ fun UpdateButton(
         }
     )
     ActionButton(
-        text = myStringResource(Res.string.update),
+        // bản này không tự cập nhật, nút chỉ mở trang phát hành
+        text = "View release",
         modifier = modifier,
         onClick = update,
         backgroundColor = backgroundColor,
