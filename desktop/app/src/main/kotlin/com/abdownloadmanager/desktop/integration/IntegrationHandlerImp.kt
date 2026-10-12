@@ -14,6 +14,7 @@ import ir.amirab.downloader.NewDownloadItemProps
 import ir.amirab.downloader.downloaditem.EmptyContext
 import ir.amirab.downloader.downloaditem.hls.HLSDownloadCredentials
 import ir.amirab.downloader.downloaditem.http.HttpDownloadCredentials
+import ir.amirab.downloader.downloaditem.ytdlp.YtDlpDownloadCredentials
 import ir.amirab.downloader.queue.QueueManager
 import ir.amirab.downloader.utils.OnDuplicateStrategy
 import org.koin.core.component.KoinComponent
@@ -105,6 +106,14 @@ class IntegrationHandlerImp : IntegrationHandler, KoinComponent {
                         link = it.link,
                         headers = it.headers,
                         downloadPage = it.downloadPage,
+                    )
+                }
+
+                is YtDlpDownloadCredentialsFromIntegration -> {
+                    YtDlpDownloadCredentials(
+                        link = it.link,
+                        downloadPage = it.downloadPage,
+                        formatPreset = it.formatPreset,
                     )
                 }
             }

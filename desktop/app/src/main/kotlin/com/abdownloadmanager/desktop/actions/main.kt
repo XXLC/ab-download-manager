@@ -35,6 +35,7 @@ import ir.amirab.util.compose.asStringSource
 import ir.amirab.util.desktop.PlatformAppActivator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
 import org.koin.core.component.get
 
 private val appComponent = Di.get<AppComponent>()
@@ -95,6 +96,12 @@ val openQueuesAction = createOpenQueuesAction(appComponent)
 val openTranslators = createOpenTranslatorsPageAction(appComponent)
 val openAboutAction = createOpenAboutPage(appComponent)
 val checkForUpdateAction = createCheckForUpdateAction(appComponent.updater)
+val checkYtDlpUpdateAction = simpleAction(
+    "Check yt-dlp for updates".asStringSource(),
+    MyIcons.refresh,
+) {
+    scope.launch { appComponent.ytDlpUpdateNotifier.check(silent = false) }
+}
 val gotoSettingsAction = createOpenSettingsAction(appComponent)
 val useSpeedLimiterAction = createSpeedLimitGroupAction(appComponent.appRepository)
 val perHostSettings = createPerHostSettingsPage(appComponent)

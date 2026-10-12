@@ -35,6 +35,7 @@ import com.abdownloadmanager.desktop.utils.renderapi.CustomRenderApi
 import com.abdownloadmanager.integration.model.HLSDownloadCredentialsFromIntegration
 import com.abdownloadmanager.integration.model.HttpDownloadCredentialsFromIntegration
 import com.abdownloadmanager.integration.model.IDownloadCredentialsFromIntegration
+import com.abdownloadmanager.integration.model.YtDlpDownloadCredentialsFromIntegration
 import com.arkivanov.decompose.DefaultComponentContext
 import com.arkivanov.essenty.lifecycle.LifecycleRegistry
 import ir.amirab.downloader.DownloadManagerMinimalControl
@@ -49,6 +50,7 @@ import com.abdownloadmanager.resources.ABDMLanguageResources
 import com.abdownloadmanager.shared.IApplicationBackgroundTracker
 import com.abdownloadmanager.shared.downloaderinui.DownloaderInUiRegistry
 import com.abdownloadmanager.shared.downloaderinui.hls.HLSDownloaderInUi
+import com.abdownloadmanager.shared.downloaderinui.ytdlp.YtDlpDownloaderInUi
 import com.abdownloadmanager.shared.downloaderinui.http.HttpDownloaderInUi
 import com.abdownloadmanager.shared.pagemanager.SettingsPageManager
 import com.abdownloadmanager.shared.platformApplicationBackgroundTracker
@@ -69,7 +71,6 @@ import com.abdownloadmanager.shared.storage.impl.DNSStorage
 import com.abdownloadmanager.shared.storage.impl.SelectQueueStorage
 import com.abdownloadmanager.shared.ui.theme.ThemeSettingsStorage
 import com.abdownloadmanager.shared.ui.widget.NotificationManager
-import com.abdownloadmanager.shared.updater.UpdateDownloaderViaDownloadSystem
 import com.abdownloadmanager.shared.util.AppVersion
 import com.abdownloadmanager.shared.util.DefinedPaths
 import com.abdownloadmanager.shared.util.DesktopDiskStat
@@ -77,7 +78,7 @@ import com.abdownloadmanager.shared.util.DesktopSystemThemeDetector
 import com.abdownloadmanager.shared.util.SizeAndSpeedUnitProvider
 import com.abdownloadmanager.shared.util.UserAgentProviderFromSettings
 import com.abdownloadmanager.shared.util.*
-import com.abdownloadmanager.updateapplier.DesktopDirectLinkUpdateApplier
+import com.abdownloadmanager.updateapplier.NotifyOnlyUpdateApplier
 import com.abdownloadmanager.updateapplier.UpdateApplier
 import ir.amirab.downloader.DownloadManager
 import kotlinx.coroutines.*
@@ -127,6 +128,10 @@ import ir.amirab.downloader.downloaditem.DownloadJob
 import ir.amirab.downloader.downloaditem.IDownloadCredentials
 import ir.amirab.downloader.downloaditem.IDownloadItem
 import ir.amirab.downloader.downloaditem.hls.HLSDownloader
+import ir.amirab.downloader.downloaditem.ytdlp.ProcessYtDlpClient
+import ir.amirab.downloader.downloaditem.ytdlp.YtDlpClient
+import ir.amirab.downloader.downloaditem.ytdlp.YtDlpDownloader
+import ir.amirab.downloader.downloaditem.ytdlp.YtDlpUpdateChecker
 import ir.amirab.downloader.downloaditem.http.HttpDownloadCredentials
 import ir.amirab.downloader.downloaditem.http.HttpDownloadItem
 import ir.amirab.downloader.downloaditem.http.HttpDownloader
@@ -229,6 +234,18 @@ val downloaderModule = module {
             useSparseFile = { downloadSettings.useSparseFileAllocation }
         )
     }
+    single<YtDlpClient> {
+        ProcessYtDlpClient()
+    }
+    single {
+        YtDlpDownloader(get())
+    }
+    single {
+        YtDlpUpdateChecker(get<YtDlpClient>(), OkHttpClient())
+    }
+    single {
+        YtDlpDownloaderInUi(get(), get())
+    }
     single {
         HLSDownloader(inject())
     }
@@ -243,6 +260,8 @@ val downloaderModule = module {
     }
     single {
         DownloaderInUiRegistry().apply {
+            // phải đứng trước HTTP vì chế độ Auto chọn downloader đầu tiên nhận link
+            add(get<YtDlpDownloaderInUi>())
             add(get<HttpDownloaderInUi>())
             add(get<HLSDownloaderInUi>())
         }
@@ -251,6 +270,7 @@ val downloaderModule = module {
         DownloaderRegistry().apply {
             add(get<HttpDownloader>())
             add(get<HLSDownloader>())
+            add(get<YtDlpDownloader>())
         }
     }
     single {
@@ -417,6 +437,10 @@ val jsonModule = module {
                         HLSDownloadCredentialsFromIntegration::class,
                         HLSDownloadCredentialsFromIntegration.serializer()
                     )
+                    subclass(
+                        YtDlpDownloadCredentialsFromIntegration::class,
+                        YtDlpDownloadCredentialsFromIntegration.serializer()
+                    )
                     defaultDeserializer {
                         HttpDownloadCredentialsFromIntegration.serializer()
                     }
@@ -440,18 +464,10 @@ val updaterModule = module {
             definedPaths.updateDownloadLocation.toFile()
         }
     }
+    // bản này chỉ thông báo có phiên bản mới, không tự cập nhật
     single<UpdateApplier> {
-        val definedPaths = get<DefinedPaths>()
-        definedPaths.updateDownloadLocation
-        DesktopDirectLinkUpdateApplier(
-            installationFolder = AppInfo.installationFolder,
-            updateFolder = definedPaths.updateDir.toString(),
-            logDir = definedPaths.logDir.toString(),
-            appName = AppInfo.name,
-            updatePreparer = UpdateDownloaderViaDownloadSystem(
-                get(),
-                get(),
-            ),
+        NotifyOnlyUpdateApplier(
+            releasePageUrl = "https://github.com/${SharedConstants.projectGithubOwner}/${SharedConstants.projectGithubRepo}/releases/latest",
         )
     }
     single<UpdateChecker> {
