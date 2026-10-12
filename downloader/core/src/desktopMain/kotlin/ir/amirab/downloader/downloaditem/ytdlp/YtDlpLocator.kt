@@ -6,28 +6,30 @@ internal object YtDlpLocator {
     private const val OVERRIDE_ENV = "ABDM_YTDLP"
     private val isWindows = System.getProperty("os.name").orEmpty().startsWith("Windows", ignoreCase = true)
 
-    /** PATH hiện tại của app, cộng thêm PATH hệ thống/người dùng đọc lại từ registry trên Windows. */
-    private val path: String by lazy {
+    /**
+     * PATH hiện tại của app, cộng thêm PATH hệ thống/người dùng đọc lại từ registry trên Windows.
+     * Không cache: yt-dlp có thể vừa được cài sau khi app khởi động và phải tìm thấy ngay ở lần sau.
+     * Chi phí là hai lần `reg query` mỗi lần tìm, chỉ phát sinh khi bắt đầu một lượt tải hoặc kiểm tra.
+     */
+    fun freshPath(): String {
         val current = System.getenv("PATH").orEmpty()
-        if (!isWindows) return@lazy current
+        if (!isWindows) return current
         val fresh = listOf(
             readRegistryPath("HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment"),
             readRegistryPath("HKCU\\Environment"),
         )
-        (current.split(File.pathSeparator) + fresh.flatMap { it.split(File.pathSeparator) })
+        return (current.split(File.pathSeparator) + fresh.flatMap { it.split(File.pathSeparator) })
             .filter { it.isNotBlank() }
             .distinct()
             .joinToString(File.pathSeparator)
     }
-
-    fun freshPath(): String = path
 
     fun locate(): File? {
         System.getenv(OVERRIDE_ENV)?.takeIf { it.isNotBlank() }?.let {
             File(it).takeIf(File::isFile)?.let { file -> return file }
         }
         val names = if (isWindows) listOf("yt-dlp.exe") else listOf("yt-dlp")
-        return path.split(File.pathSeparator)
+        return freshPath().split(File.pathSeparator)
             .asSequence()
             .filter { it.isNotBlank() }
             .flatMap { dir -> names.map { File(dir, it) } }

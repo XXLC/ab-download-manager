@@ -26,9 +26,7 @@ class YtDlpLinkChecker(
 
     override fun infoUpdated(responseInfo: YtDlpResponseInfo?) {
         val preset = YtDlpPreset.fromId(credentials.value.formatPreset)
-        _suggestedName.value = responseInfo?.mediaInfo?.title?.let {
-            FilenameFixer.fix(it).take(MAX_TITLE_LENGTH).trimEnd() + "." + preset.extension
-        }
+        _suggestedName.value = responseInfo?.mediaInfo?.title?.let { fileNameFor(it, preset) }
         _size.value = responseInfo?.mediaInfo?.sizeBytes
     }
 
@@ -37,8 +35,12 @@ class YtDlpLinkChecker(
         return YtDlpResponseInfo(client.fetchInfo(credentials.link, preset))
     }
 
-    private companion object {
+    companion object {
         // Windows giới hạn đường dẫn ~260 ký tự và yt-dlp còn thêm hậu tố tạm như .f137.mp4.part
-        const val MAX_TITLE_LENGTH = 120
+        private const val MAX_TITLE_LENGTH = 120
+
+        fun fileNameFor(title: String, preset: YtDlpPreset): String {
+            return FilenameFixer.fix(title).take(MAX_TITLE_LENGTH).trimEnd() + "." + preset.extension
+        }
     }
 }
