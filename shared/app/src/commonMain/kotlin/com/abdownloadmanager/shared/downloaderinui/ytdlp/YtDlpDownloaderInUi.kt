@@ -14,6 +14,7 @@ import ir.amirab.downloader.downloaditem.ytdlp.YtDlpDownloadCredentials
 import ir.amirab.downloader.downloaditem.ytdlp.YtDlpDownloadItem
 import ir.amirab.downloader.downloaditem.ytdlp.YtDlpDownloadJob
 import ir.amirab.downloader.downloaditem.ytdlp.YtDlpDownloader
+import ir.amirab.downloader.downloaditem.ytdlp.YtDlpPreset
 import ir.amirab.downloader.downloaditem.ytdlp.YtDlpResponseInfo
 import ir.amirab.downloader.monitor.ProcessingDownloadItemFactoryInputs
 import ir.amirab.downloader.monitor.ProcessingDownloadItemState
@@ -126,6 +127,16 @@ class YtDlpDownloaderInUi(
      */
     override fun supportsThisLink(link: String): Boolean {
         return VIDEO_SITES.containsMatchIn(link)
+    }
+
+    /**
+     * Tên tệp theo tiêu đề video, dùng khi thêm tải xuống không qua hộp thoại (API/CLI) mà không có tên.
+     * Tên lấy từ đuôi của link như các loại khác sẽ thành rác (ví dụ "watch?v=...").
+     */
+    suspend fun suggestFileName(credentials: YtDlpDownloadCredentials): String {
+        val preset = YtDlpPreset.fromId(credentials.formatPreset)
+        val info = downloader.client.fetchInfo(credentials.link, preset)
+        return YtDlpLinkChecker.fileNameFor(info.title, preset)
     }
 
     override fun createMinimumCredentials(link: String): YtDlpDownloadCredentials {

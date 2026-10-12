@@ -5,6 +5,8 @@ import com.abdownloadmanager.shared.ui.widget.NotificationType
 import ir.amirab.downloader.downloaditem.ytdlp.YtDlpUpdateChecker
 import ir.amirab.downloader.downloaditem.ytdlp.YtDlpUpdateResult
 import ir.amirab.util.compose.asStringSource
+import ir.amirab.util.platform.isWindows
+import ir.amirab.util.platform.Platform
 import kotlinx.coroutines.CancellationException
 
 /**
@@ -29,8 +31,7 @@ class YtDlpUpdateNotifier(
         when (result) {
             is YtDlpUpdateResult.UpdateAvailable -> notify(
                 NotificationType.Info,
-                "yt-dlp ${result.latest} is available (installed: ${result.installed}). " +
-                        "Update it with: winget upgrade yt-dlp.yt-dlp",
+                "yt-dlp ${result.latest} is available (installed: ${result.installed}). ${updateHint()}",
             )
 
             is YtDlpUpdateResult.UpToDate -> if (!silent) {
@@ -38,8 +39,25 @@ class YtDlpUpdateNotifier(
             }
 
             YtDlpUpdateResult.NotInstalled -> if (!silent) {
-                notify(NotificationType.Warning, "yt-dlp was not found. Install it with: winget install yt-dlp.yt-dlp")
+                notify(NotificationType.Warning, "yt-dlp was not found. ${installHint()}")
             }
+        }
+    }
+
+    // winget chỉ có trên Windows; ở nền tảng khác chỉ dẫn tới trang phát hành để không đưa lệnh không chạy được
+    private fun updateHint(): String {
+        return if (Platform.isWindows()) {
+            "Update it with: winget upgrade yt-dlp.yt-dlp"
+        } else {
+            "Update it with your package manager or see ${YtDlpUpdateChecker.RELEASES_PAGE_URL}"
+        }
+    }
+
+    private fun installHint(): String {
+        return if (Platform.isWindows()) {
+            "Install it with: winget install yt-dlp.yt-dlp"
+        } else {
+            "Install it with your package manager or see ${YtDlpUpdateChecker.RELEASES_PAGE_URL}"
         }
     }
 

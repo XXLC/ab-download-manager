@@ -17,11 +17,12 @@ interface YtDlpClient {
     /**
      * Tải và chạy đến khi xong. Hủy coroutine sẽ dừng yt-dlp (kèm cả tiến trình con).
      * [onProgress] nhận tổng số byte đã tải của mọi luồng (video + audio) cộng dồn.
+     * Trả về tệp cuối cùng mà yt-dlp báo, hoặc null nếu không đọc được.
      */
     suspend fun download(
         request: YtDlpDownloadRequest,
         onProgress: suspend (YtDlpProgress) -> Unit,
-    )
+    ): File?
 }
 
 data class YtDlpMediaInfo(
@@ -38,6 +39,10 @@ data class YtDlpDownloadRequest(
     val link: String,
     val preset: YtDlpPreset,
     val outputDirectory: File,
+    /** thư mục riêng của lượt tải này cho tệp tạm và tệp dở của yt-dlp */
+    val tempDirectory: File,
+    /** tệp để yt-dlp ghi đường dẫn kết quả cuối cùng vào, nằm trong [tempDirectory] */
+    val resultFile: File,
     /** tên tệp không có phần mở rộng, yt-dlp sẽ tự thêm đuôi theo [preset] */
     val baseName: String,
     val connections: Int,

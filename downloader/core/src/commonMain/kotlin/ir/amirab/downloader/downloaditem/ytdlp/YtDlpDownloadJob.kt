@@ -13,6 +13,7 @@ import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.io.File
 import java.util.concurrent.atomic.AtomicLong
 
 /**
@@ -40,7 +41,10 @@ class YtDlpDownloadJob(
     }
 
     override fun initializeDestination() {
-        destination = YtDlpDestination(downloadManager.calculateOutputFile(downloadItem))
+        destination = YtDlpDestination(
+            outputFile = downloadManager.calculateOutputFile(downloadItem),
+            tempDirectory = downloadManager.downloadDataFolder.resolve(id.toString()),
+        )
     }
 
     override suspend fun resume() {
@@ -55,7 +59,7 @@ class YtDlpDownloadJob(
             try {
                 destination.prepareDestinationFolder()
                 var started = false
-                client.download(createRequest()) { progress ->
+                val finalFile = client.download(createRequest()) { progress ->
                     downloadedBytes.set(progress.downloadedBytes)
                     // contentLength là ước lượng từ lúc kiểm tra link, nới ra để phần trăm không vượt 100%
                     if (downloadItem.contentLength > 0 && progress.downloadedBytes > downloadItem.contentLength) {
@@ -66,7 +70,7 @@ class YtDlpDownloadJob(
                         markAsDownloading()
                     }
                 }
-                adoptActualOutputName()
+                adoptActualOutputName(finalFile)
                 onDownloadFinished()
             } catch (e: Exception) {
                 if (ExceptionUtils.isNormalCancellation(e)) {
@@ -94,6 +98,8 @@ class YtDlpDownloadJob(
             link = downloadItem.link,
             preset = downloadItem.preset,
             outputDirectory = output.parentFile,
+            tempDirectory = destination.tempDirectory,
+            resultFile = destination.resultFile,
             baseName = destination.baseName,
             connections = downloadItem.preferredConnectionCount
                 ?: downloadManager.settings.defaultThreadCount,
@@ -101,13 +107,15 @@ class YtDlpDownloadJob(
         )
     }
 
-    /** yt-dlp có thể chọn đuôi khác dự kiến, cập nhật tên để item trỏ đúng tệp thật. */
-    private fun adoptActualOutputName() {
-        val actual = destination.findActualOutput()
-        if (actual != null && actual != destination.outputFile) {
-            downloadItem.name = actual.name
-            initializeDestination()
-        }
+    /**
+     * yt-dlp có thể chọn đuôi khác dự kiến, cập nhật tên để item trỏ đúng tệp mà chính yt-dlp báo
+     * (không dò theo tên trong thư mục để khỏi nhận nhầm tệp cũ hay tệp của lượt tải khác).
+     */
+    private fun adoptActualOutputName(finalFile: File?) {
+        if (finalFile == null || finalFile.canonicalFile == destination.outputFile) return
+        if (finalFile.canonicalFile.parentFile != destination.outputFile.parentFile) return
+        downloadItem.name = finalFile.name
+        initializeDestination()
     }
 
     override suspend fun pause(throwable: Throwable) {
@@ -161,15 +169,21 @@ class YtDlpDownloadJob(
         val previousDestination = downloadManager.calculateOutputFile(previousItem)
         val newDestination = downloadManager.calculateOutputFile(newItem)
         val shouldUpdateDestination = previousDestination != newDestination
+        // dữ liệu tải dở của link hoặc preset cũ không dùng lại được cho link hoặc preset mới
+        val partialDataInvalidated = previousItem.link != newItem.link ||
+                previousItem.formatPreset != newItem.formatPreset
         val needsRestart = isDownloadActive.value && (
                 shouldUpdateDestination ||
-                        previousItem.link != newItem.link ||
-                        previousItem.formatPreset != newItem.formatPreset ||
+                        partialDataInvalidated ||
                         previousItem.preferredConnectionCount != newItem.preferredConnectionCount ||
                         previousItem.speedLimit != newItem.speedLimit
                 )
         if (needsRestart) {
             pause()
+        }
+        if (partialDataInvalidated) {
+            destination.cleanUpJunkFiles()
+            downloadedBytes.set(0)
         }
         if (shouldUpdateDestination) {
             destination.moveOutput(newDestination)

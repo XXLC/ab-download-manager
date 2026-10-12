@@ -15,10 +15,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import org.koin.core.component.KoinComponent
 import ir.amirab.util.compose.asStringSource
-import kotlinx.coroutines.flow.drop
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
-import kotlin.concurrent.Volatile
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 class UpdateComponent(
     ctx: ComponentContext,
@@ -63,52 +61,34 @@ class UpdateComponent(
         showNewUpdate.update { true }
     }
 
-    // một lần kiểm tra im lặng chỉ hiện thông báo khi có bản mới, không hiện "đang kiểm tra", "không có bản mới", hay lỗi
-    @Volatile
-    private var silentCheck = false
+    // các lần kiểm tra chạy lần lượt để kết quả luôn thuộc về đúng yêu cầu đã gọi nó
+    private val checkMutex = Mutex()
 
+    /**
+     * Kiểm tra bản mới. Ở chế độ [silent] (kiểm tra tự động lúc khởi động) chỉ hiện thông báo khi có bản mới,
+     * không hiện "đang kiểm tra", "không có bản mới" hay lỗi.
+     */
     fun requestCheckForUpdate(silent: Boolean = false) {
         scope.launch {
-            silentCheck = silent
-            updateManager.checkForUpdate()
+            checkMutex.withLock {
+                if (!silent) sendEffect(Effects.CheckingForUpdate)
+                updateManager.checkForUpdate()
+                when (val status = updateManager.updateCheckStatus.value) {
+                    is UpdateCheckStatus.Error -> if (!silent) sendEffect(Effects.Error(status.e))
+                    UpdateCheckStatus.NewUpdate -> {
+                        sendEffect(Effects.NewUpdate)
+                        showNewUpdate()
+                    }
+
+                    UpdateCheckStatus.NoUpdate -> if (!silent) sendEffect(Effects.NoUpdate)
+                    UpdateCheckStatus.IDLE, UpdateCheckStatus.Checking -> {}
+                }
+            }
         }
     }
 
     fun requestClose() {
         showNewUpdate.update { false }
-    }
-
-    init {
-        updateCheckStatus
-            .drop(1) // state flow
-            .onEach {
-                val silent = silentCheck
-                when (it) {
-                    UpdateCheckStatus.Checking -> {
-                        if (!silent) sendEffect(Effects.CheckingForUpdate)
-                    }
-
-                    is UpdateCheckStatus.Error -> {
-                        silentCheck = false
-                        if (!silent) sendEffect(Effects.Error(it.e))
-                    }
-
-                    UpdateCheckStatus.NewUpdate -> {
-                        silentCheck = false
-                        sendEffect(Effects.NewUpdate)
-                        showNewUpdate()
-                    }
-
-                    UpdateCheckStatus.NoUpdate -> {
-                        silentCheck = false
-                        if (!silent) sendEffect(Effects.NoUpdate)
-                    }
-
-                    UpdateCheckStatus.IDLE -> {
-
-                    }
-                }
-            }.launchIn(scope)
     }
 
     sealed interface Effects {

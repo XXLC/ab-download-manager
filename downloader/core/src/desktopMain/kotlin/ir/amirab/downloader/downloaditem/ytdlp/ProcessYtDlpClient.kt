@@ -1,9 +1,12 @@
 package ir.amirab.downloader.downloaditem.ytdlp
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -46,9 +49,11 @@ class ProcessYtDlpClient : YtDlpClient {
     override suspend fun download(
         request: YtDlpDownloadRequest,
         onProgress: suspend (YtDlpProgress) -> Unit,
-    ) {
-        // % trong đường dẫn phải được escape vì yt-dlp coi toàn bộ -o là mẫu định dạng
-        val template = File(request.outputDirectory, request.baseName).path.replace("%", "%%") + ".%(ext)s"
+    ): File? {
+        // % trong tên phải được escape vì yt-dlp coi toàn bộ -o là mẫu định dạng
+        val template = request.baseName.replace("%", "%%") + ".%(ext)s"
+        request.tempDirectory.mkdirs()
+        request.resultFile.delete()
         val command = buildList {
             add(locateYtDlp().path)
             addAll(listOf("--newline", "--no-playlist", "--no-warnings", "--no-mtime"))
@@ -58,7 +63,12 @@ class ProcessYtDlpClient : YtDlpClient {
                 addAll(listOf("--limit-rate", request.speedLimit.toString()))
             }
             addAll(request.preset.ytDlpArgs)
+            // tệp dở và tệp tạm nằm riêng trong thư mục của lượt tải, tệp hoàn chỉnh mới được chuyển ra thư mục đích
+            addAll(listOf("-P", "home:${request.outputDirectory.path}"))
+            addAll(listOf("-P", "temp:${request.tempDirectory.path}"))
             addAll(listOf("-o", template))
+            // yt-dlp tự ghi đường dẫn tệp cuối cùng để khỏi phải đoán theo tên trong thư mục
+            addAll(listOf("--print-to-file", "after_move:filepath", request.resultFile.path))
             add("--")
             add(request.link)
         }
@@ -91,20 +101,39 @@ class ProcessYtDlpClient : YtDlpClient {
                 killTree(process)
             }
         }
+        return readFinalFile(request.resultFile)
     }
 
-    private suspend fun runToEnd(command: List<String>): String = coroutineScope {
+    private fun readFinalFile(resultFile: File): File? {
+        return runCatching {
+            resultFile.readLines().lastOrNull { it.isNotBlank() }?.trim()?.let(::File)
+        }.getOrNull()
+    }
+
+    /**
+     * Chạy lệnh ngắn (lấy thông tin, phiên bản) và trả về stdout. Việc đọc chạy ở coroutine con để hủy
+     * hoặc quá hạn thì [killTree] trong finally giải phóng được lần đọc đang chặn, tiến trình không bị bỏ lại.
+     */
+    private suspend fun runToEnd(
+        command: List<String>,
+        timeoutMs: Long = METADATA_TIMEOUT_MS,
+    ): String = coroutineScope {
         val process = startProcess(command)
         val stderr = drainStderr(process)
         try {
-            val output = withContext(Dispatchers.IO) {
-                process.inputStream.bufferedReader().readText()
+            withTimeout(timeoutMs) {
+                val output = async(Dispatchers.IO) {
+                    process.inputStream.bufferedReader().readText()
+                }
+                val text = output.await()
+                val exitCode = withContext(Dispatchers.IO) { process.waitFor() }
+                if (exitCode != 0) {
+                    throw YtDlpException(errorMessage(exitCode, stderr))
+                }
+                text
             }
-            val exitCode = withContext(Dispatchers.IO) { process.waitFor() }
-            if (exitCode != 0) {
-                throw YtDlpException(errorMessage(exitCode, stderr))
-            }
-            output
+        } catch (e: TimeoutCancellationException) {
+            throw YtDlpException("yt-dlp did not answer within ${timeoutMs / 1000}s", e)
         } finally {
             killTree(process)
         }
@@ -186,6 +215,7 @@ class ProcessYtDlpClient : YtDlpClient {
 
     private companion object {
         const val PROGRESS_PREFIX = "ABDM|"
+        const val METADATA_TIMEOUT_MS = 60_000L
         const val STDERR_LINES_TO_KEEP = 20
     }
 }
