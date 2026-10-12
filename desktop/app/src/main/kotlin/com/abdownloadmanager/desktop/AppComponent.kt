@@ -32,6 +32,8 @@ import com.abdownloadmanager.shared.pages.adddownload.AddDownloadCredentialsInUi
 import com.abdownloadmanager.shared.pages.adddownload.ImportOptions
 import com.abdownloadmanager.shared.pages.category.CategoryComponent
 import com.abdownloadmanager.shared.pages.updater.UpdateComponent
+import com.abdownloadmanager.shared.downloaderinui.ytdlp.YtDlpUpdateNotifier
+import ir.amirab.downloader.downloaditem.ytdlp.YtDlpUpdateChecker
 import com.abdownloadmanager.shared.storage.ExtraDownloadSettingsStorage
 import com.abdownloadmanager.shared.storage.ISelectQueueStorage
 import com.abdownloadmanager.shared.ui.widget.MessageDialogType
@@ -83,6 +85,9 @@ sealed interface AppEffects {
         val notificationModel: NotificationModel,
     ) : AppEffects
 }
+
+// chờ giao diện và kết nối mạng ổn định rồi mới kiểm tra cập nhật
+private const val AUTO_UPDATE_CHECK_DELAY_MS = 30_000L
 
 class AppComponent(
     ctx: ComponentContext,
@@ -1238,6 +1243,18 @@ class AppComponent(
         this,
         updaterManager,
     )
+
+    private val ytDlpUpdateChecker: YtDlpUpdateChecker by inject()
+    val ytDlpUpdateNotifier = YtDlpUpdateNotifier(ytDlpUpdateChecker, this)
+
+    init {
+        // kiểm tra im lặng lúc khởi động, chỉ báo khi có bản mới của app hoặc yt-dlp, không tự cập nhật
+        scope.launch {
+            delay(AUTO_UPDATE_CHECK_DELAY_MS)
+            updater.requestCheckForUpdate(silent = true)
+            ytDlpUpdateNotifier.check(silent = true)
+        }
+    }
 
 
     private val perHostSettings = SlotNavigation<DesktopPerHostSettingsComponent.Config>()
