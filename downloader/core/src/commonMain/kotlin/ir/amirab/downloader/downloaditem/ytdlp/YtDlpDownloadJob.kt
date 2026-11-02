@@ -55,7 +55,7 @@ class YtDlpDownloadJob(
         val activeScope = newScopeBasedOn(scope).also { activeDownloadScope = it }
         activeScope.launch {
             boot()
-            onDownloadResuming()
+            onDownloadResuming(isFirstAttempt = true)
             try {
                 destination.prepareDestinationFolder()
                 var started = false

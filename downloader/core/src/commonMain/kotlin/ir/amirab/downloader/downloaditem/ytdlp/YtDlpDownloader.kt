@@ -21,6 +21,14 @@ class YtDlpDownloader(
         )
     }
 
+    override fun convertToCredentials(item: YtDlpDownloadItem): YtDlpDownloadCredentials {
+        return YtDlpDownloadCredentials(
+            link = item.link,
+            downloadPage = item.downloadPage,
+            formatPreset = item.formatPreset,
+        )
+    }
+
     override fun accept(item: IDownloadItem): Boolean {
         return item is YtDlpDownloadItem
     }
