@@ -6,6 +6,7 @@ import com.abdownloadmanager.integration.IntegrationHandler
 import com.abdownloadmanager.integration.model.*
 import com.abdownloadmanager.shared.downloaderinui.BasicDownloadItem
 import com.abdownloadmanager.shared.downloaderinui.DownloaderInUiRegistry
+import com.abdownloadmanager.shared.downloaderinui.ytdlp.YtDlpDownloaderInUi
 import com.abdownloadmanager.shared.pages.adddownload.AddDownloadCredentialsInUiProps
 import com.abdownloadmanager.shared.pages.adddownload.ImportOptions
 import com.abdownloadmanager.shared.pages.adddownload.SilentImportOptions
@@ -14,6 +15,7 @@ import ir.amirab.downloader.NewDownloadItemProps
 import ir.amirab.downloader.downloaditem.EmptyContext
 import ir.amirab.downloader.downloaditem.hls.HLSDownloadCredentials
 import ir.amirab.downloader.downloaditem.http.HttpDownloadCredentials
+import ir.amirab.downloader.downloaditem.ytdlp.YtDlpDownloadCredentials
 import ir.amirab.downloader.queue.QueueManager
 import ir.amirab.downloader.utils.OnDuplicateStrategy
 import org.koin.core.component.KoinComponent
@@ -57,12 +59,17 @@ class IntegrationHandlerImp : IntegrationHandler, KoinComponent {
         val downloaderInUi = downloaderInUiRegistry.getDownloaderOf(
             addDownloaderInUiProps.credentials
         ) ?: error("Downloader for ${addDownloaderInUiProps.credentials::class.qualifiedName} not found")
+        val credentials = addDownloaderInUiProps.credentials
+        val name = task.name
+            ?: addDownloaderInUiProps.extraConfig.suggestedName
+            ?: (downloaderInUi as? YtDlpDownloaderInUi)
+                ?.suggestFileName(credentials as YtDlpDownloadCredentials)
+            ?: task.downloadSource.link.substringAfterLast("/")
         val downloadItem = downloaderInUi.createBareDownloadItem(
-            addDownloaderInUiProps.credentials,
+            credentials,
             basicDownloadItem = BasicDownloadItem(
                 folder = task.folder ?: appSettings.saveLocation.value,
-                name = task.name ?: addDownloaderInUiProps.extraConfig.suggestedName
-                ?: task.downloadSource.link.substringAfterLast("/"),
+                name = name,
             ),
         )
         val id = downloadSystem.addDownload(
@@ -105,6 +112,14 @@ class IntegrationHandlerImp : IntegrationHandler, KoinComponent {
                         link = it.link,
                         headers = it.headers,
                         downloadPage = it.downloadPage,
+                    )
+                }
+
+                is YtDlpDownloadCredentialsFromIntegration -> {
+                    YtDlpDownloadCredentials(
+                        link = it.link,
+                        downloadPage = it.downloadPage,
+                        formatPreset = it.formatPreset,
                     )
                 }
             }

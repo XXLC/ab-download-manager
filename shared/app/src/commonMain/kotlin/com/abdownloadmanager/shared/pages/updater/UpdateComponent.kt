@@ -15,9 +15,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import org.koin.core.component.KoinComponent
 import ir.amirab.util.compose.asStringSource
-import kotlinx.coroutines.flow.drop
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 class UpdateComponent(
     ctx: ComponentContext,
@@ -62,43 +61,34 @@ class UpdateComponent(
         showNewUpdate.update { true }
     }
 
-    fun requestCheckForUpdate() {
+    // các lần kiểm tra chạy lần lượt để kết quả luôn thuộc về đúng yêu cầu đã gọi nó
+    private val checkMutex = Mutex()
+
+    /**
+     * Kiểm tra bản mới. Ở chế độ [silent] (kiểm tra tự động lúc khởi động) chỉ hiện thông báo khi có bản mới,
+     * không hiện "đang kiểm tra", "không có bản mới" hay lỗi.
+     */
+    fun requestCheckForUpdate(silent: Boolean = false) {
         scope.launch {
-            updateManager.checkForUpdate()
-        }
-    }
-
-    fun requestClose() {
-        showNewUpdate.update { false }
-    }
-
-    init {
-        updateCheckStatus
-            .drop(1) // state flow
-            .onEach {
-                when (it) {
-                    UpdateCheckStatus.Checking -> {
-                        sendEffect(Effects.CheckingForUpdate)
-                    }
-
-                    is UpdateCheckStatus.Error -> {
-                        sendEffect(Effects.Error(it.e))
-                    }
-
+            checkMutex.withLock {
+                if (!silent) sendEffect(Effects.CheckingForUpdate)
+                updateManager.checkForUpdate()
+                when (val status = updateManager.updateCheckStatus.value) {
+                    is UpdateCheckStatus.Error -> if (!silent) sendEffect(Effects.Error(status.e))
                     UpdateCheckStatus.NewUpdate -> {
                         sendEffect(Effects.NewUpdate)
                         showNewUpdate()
                     }
 
-                    UpdateCheckStatus.NoUpdate -> {
-                        sendEffect(Effects.NoUpdate)
-                    }
-
-                    UpdateCheckStatus.IDLE -> {
-
-                    }
+                    UpdateCheckStatus.NoUpdate -> if (!silent) sendEffect(Effects.NoUpdate)
+                    UpdateCheckStatus.IDLE, UpdateCheckStatus.Checking -> {}
                 }
-            }.launchIn(scope)
+            }
+        }
+    }
+
+    fun requestClose() {
+        showNewUpdate.update { false }
     }
 
     sealed interface Effects {

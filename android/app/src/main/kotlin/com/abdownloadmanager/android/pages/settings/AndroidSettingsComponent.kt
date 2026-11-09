@@ -110,6 +110,7 @@ class AndroidSettingsComponent(
             ConfigurableGroup(
                 nestedConfigurable = listOf(
                     CommonSettings.perHostSettings(perHostSettingsPageManager),
+                    CommonSettings.blockAddWhenLoading(appSettings),
                 )
             ),
             ConfigurableGroup(
@@ -138,6 +139,7 @@ class AndroidSettingsComponent(
                 nestedConfigurable = listOf(
                     AndroidSettings.permissionSettings(permissionsPageManager),
                     AndroidSettings.ignoreBatteryOptimizations(),
+                    AndroidSettings.cameraPermission(),
                 )
             ),
 

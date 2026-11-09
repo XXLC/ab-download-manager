@@ -23,8 +23,10 @@ import com.abdownloadmanager.shared.util.category.Category
 import com.abdownloadmanager.shared.util.category.CategoryItemWithId
 import com.abdownloadmanager.shared.util.category.CategoryManager
 import com.abdownloadmanager.shared.util.category.DefaultCategories
+import com.abdownloadmanager.shared.util.extractors.linkextractor.DownloadCredentialsFromJson
 import com.abdownloadmanager.shared.util.mvi.ContainsEffects
 import com.abdownloadmanager.shared.util.mvi.supportEffects
+import com.abdownloadmanager.shared.util.qrcode.QRCodeCreator
 import com.arkivanov.decompose.ComponentContext
 import ir.amirab.downloader.DownloadManagerEvents
 import ir.amirab.downloader.db.QueueModel
@@ -35,6 +37,7 @@ import ir.amirab.downloader.queue.DownloadQueue
 import ir.amirab.downloader.queue.QueueManager
 import ir.amirab.downloader.queue.queueModelsFlow
 import ir.amirab.util.compose.asStringSource
+import ir.amirab.util.compose.asStringSourceWithARgs
 import ir.amirab.util.coroutines.combine
 import ir.amirab.util.flow.combineStateFlows
 import ir.amirab.util.flow.mapStateFlow
@@ -73,6 +76,41 @@ abstract class BaseHomeComponent(
     protected abstract val enterNewURLDialogManager: EnterNewURLDialogManager
     val filterState = FilterState()
     val failedDownloads = downloadSystem.downloadErrorsFlow
+
+
+    private val _copyQRCodeScreen = MutableStateFlow(
+        null as CopyDownloadAsQRCode?
+    )
+    val copyQRCodeScreen = _copyQRCodeScreen.asStateFlow()
+
+    fun requestOpenQRCodeScreen(downloadId: List<Long>) {
+        scope.launch {
+            val items = runCatching {
+                downloadId.mapNotNull {
+                    downloadSystem.getDownloadItemById(it)
+                }
+            }.getOrElse { emptyList() }
+            if (items.isEmpty()) return@launch
+            val title = if (items.size == 1) {
+                items.first().name.asStringSource()
+            } else {
+                Res.string.n_items_selected.asStringSourceWithARgs(
+                    Res.string.n_items_selected_createArgs(
+                        count = items.size.toString()
+                    )
+                )
+            }
+            _copyQRCodeScreen.value = CopyDownloadAsQRCode(
+                title = title,
+                qrCode = DownloadCredentialsFromJson.credentialsAsJson(items)
+            )
+        }
+    }
+
+    fun closeQRCodeScreen() {
+        _copyQRCodeScreen.value = null
+    }
+
 
     protected fun requestDelete(
         downloadList: List<Long>,

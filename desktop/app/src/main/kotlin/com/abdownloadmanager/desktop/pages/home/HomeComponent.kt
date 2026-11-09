@@ -219,6 +219,7 @@ class HomeComponent(
             +donate
             separator()
             +checkForUpdateAction
+            +checkYtDlpUpdateAction
             +openAboutAction
         }
     }.filterIsInstance<MenuItem.SubMenu>()
@@ -392,6 +393,7 @@ class HomeComponent(
         openWith = this::openWith,
         openFolder = this::openFolder,
         requestDelete = this::requestDelete,
+        requestShowQRCode = this::requestOpenQRCodeScreen,
     )
 
     override val shortcutManager = DesktopShortcutManager().apply {

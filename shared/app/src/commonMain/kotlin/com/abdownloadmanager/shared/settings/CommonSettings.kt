@@ -21,8 +21,11 @@ import com.abdownloadmanager.shared.ui.configurable.item.StringConfigurable
 import com.abdownloadmanager.shared.ui.configurable.item.ThemeConfigurable
 import com.abdownloadmanager.shared.ui.theme.ThemeManager
 import com.abdownloadmanager.shared.util.ApiKeyUtil
+import com.abdownloadmanager.shared.util.EmptyStringSource
 import com.abdownloadmanager.shared.util.MaximumDownloadRetriesLimitation
 import com.abdownloadmanager.shared.util.ThreadCountLimitation
+import com.abdownloadmanager.shared.util.asToggledStringSource
+import com.abdownloadmanager.shared.util.convertPositiveSizeToHumanReadable
 import com.abdownloadmanager.shared.util.convertPositiveSpeedToHumanReadable
 import com.abdownloadmanager.shared.util.dns.DnsModes
 import com.abdownloadmanager.shared.util.notification.INotificationSound
@@ -120,14 +123,11 @@ object CommonSettings {
             description = Res.string.settings_dynamic_part_creation_description.asStringSource(),
             backedBy = appRepository.dynamicPartCreation,
             describe = {
-                if (it) {
-                    Res.string.enabled.asStringSource()
-                } else {
-                    Res.string.disabled.asStringSource()
-                }
+                it.asToggledStringSource()
             },
         )
     }
+
     fun minPartSize(appRepository: BaseAppRepository): SizeConfigurable {
         return SizeConfigurable(
             title = Res.string.settings_min_part_size.asStringSource(),
@@ -136,10 +136,10 @@ object CommonSettings {
             range = DownloadSettings.MIN_ALLOWED_MIN_PART_SIZE..DownloadSettings.MAX_ALLOWED_MIN_PART_SIZE,
             isSpeed = false,
             describe = {
-                convertPositiveSpeedToHumanReadable(
+                convertPositiveSizeToHumanReadable(
                     it,
-                    appRepository.speedUnit.value
-                ).asStringSource()
+                    appRepository.sizeUnit.value
+                )
             },
         )
     }
@@ -150,11 +150,7 @@ object CommonSettings {
             description = Res.string.settings_use_server_last_modified_time_description.asStringSource(),
             backedBy = appRepository.useServerLastModifiedTime,
             describe = {
-                if (it) {
-                    Res.string.enabled.asStringSource()
-                } else {
-                    Res.string.disabled.asStringSource()
-                }
+                it.asToggledStringSource()
             },
         )
     }
@@ -165,11 +161,7 @@ object CommonSettings {
             description = Res.string.settings_append_extension_to_incomplete_downloads_description.asStringSource(),
             backedBy = appRepository.appendExtensionToIncompleteDownloads,
             describe = {
-                if (it) {
-                    Res.string.enabled.asStringSource()
-                } else {
-                    Res.string.disabled.asStringSource()
-                }
+                it.asToggledStringSource()
             },
         )
     }
@@ -180,11 +172,7 @@ object CommonSettings {
             description = Res.string.settings_use_sparse_file_allocation_description.asStringSource(),
             backedBy = appRepository.useSparseFileAllocation,
             describe = {
-                if (it) {
-                    Res.string.enabled.asStringSource()
-                } else {
-                    Res.string.disabled.asStringSource()
-                }
+                it.asToggledStringSource()
             },
         )
     }
@@ -195,11 +183,7 @@ object CommonSettings {
             description = Res.string.settings_track_deleted_files_on_disk_description.asStringSource(),
             backedBy = appRepository.trackDeletedFilesOnDisk,
             describe = {
-                if (it) {
-                    Res.string.enabled.asStringSource()
-                } else {
-                    Res.string.disabled.asStringSource()
-                }
+                it.asToggledStringSource()
             },
         )
     }
@@ -210,11 +194,7 @@ object CommonSettings {
             description = Res.string.settings_delete_partial_file_on_download_cancellation_description.asStringSource(),
             backedBy = appSettingsStorage.deletePartialFileOnDownloadCancellation,
             describe = {
-                if (it) {
-                    Res.string.enabled.asStringSource()
-                } else {
-                    Res.string.disabled.asStringSource()
-                }
+                it.asToggledStringSource()
             },
         )
     }
@@ -225,11 +205,7 @@ object CommonSettings {
             description = Res.string.settings_ignore_ssl_certificates_description.asStringSource(),
             backedBy = appSettingsStorage.ignoreSSLCertificates,
             describe = {
-                if (it) {
-                    Res.string.enabled.asStringSource()
-                } else {
-                    Res.string.disabled.asStringSource()
-                }
+                it.asToggledStringSource()
             },
         )
     }
@@ -243,8 +219,22 @@ object CommonSettings {
                 if (it.isBlank()) {
                     Res.string.disabled.asStringSource()
                 } else {
-                    "".asStringSource()
+                    EmptyStringSource
                 }
+            },
+        )
+    }
+    fun blockAddWhenLoading(appSettingsStorage: BaseAppSettingsStorage): BooleanConfigurable {
+        return BooleanConfigurable(
+            title = Res.string.settings_block_add_when_loading.asStringSource(),
+            description = Res.string.settings_block_add_when_loading_description.asStringSource(),
+            backedBy = appSettingsStorage.blockAddWhenLoading,
+            describe = {
+                if (it) {
+                    Res.string.enabled
+                } else {
+                    Res.string.disabled
+                }.asStringSource()
             },
         )
     }
@@ -255,11 +245,7 @@ object CommonSettings {
             description = Res.string.settings_use_category_by_default_description.asStringSource(),
             backedBy = appSettingsStorage.useCategoryByDefault,
             describe = {
-                if (it) {
-                    Res.string.enabled.asStringSource()
-                } else {
-                    Res.string.disabled.asStringSource()
-                }
+                it.asToggledStringSource()
             },
         )
     }
@@ -327,7 +313,7 @@ object CommonSettings {
             description = Res.string.settings_show_completion_dialog_description.asStringSource(),
             backedBy = settingsStorage.showDownloadCompletionDialog,
             describe = {
-                (if (it) Res.string.enabled else Res.string.disabled).asStringSource()
+                it.asToggledStringSource()
             },
         )
     }
@@ -338,7 +324,7 @@ object CommonSettings {
             description = Res.string.settings_show_download_progress_dialog_description.asStringSource(),
             backedBy = settingsStorage.showDownloadProgressDialog,
             describe = {
-                (if (it) Res.string.enabled else Res.string.disabled).asStringSource()
+                it.asToggledStringSource()
             },
         )
     }
@@ -529,7 +515,7 @@ object CommonSettings {
         val allLanguages = languageManager.languageList.value
         return EnumConfigurable(
             title = Res.string.settings_language.asStringSource(),
-            description = "".asStringSource(),
+            description = EmptyStringSource,
             backedBy = createMutableStateFlowFromStateFlow(
                 flow = currentLanguageName.mapStateFlow { language ->
                     language?.let {
@@ -575,11 +561,7 @@ object CommonSettings {
             description = Res.string.settings_show_icon_labels_description.asStringSource(),
             backedBy = appSettings.showIconLabels,
             describe = {
-                if (it) {
-                    Res.string.enabled.asStringSource()
-                } else {
-                    Res.string.disabled.asStringSource()
-                }
+                it.asToggledStringSource()
             },
         )
     }
@@ -590,11 +572,7 @@ object CommonSettings {
             description = Res.string.settings_use_relative_date_time_description.asStringSource(),
             backedBy = appSettings.useRelativeDateTime,
             describe = {
-                if (it) {
-                    Res.string.enabled.asStringSource()
-                } else {
-                    Res.string.disabled.asStringSource()
-                }
+                it.asToggledStringSource()
             },
         )
     }
@@ -607,11 +585,7 @@ object CommonSettings {
             backedBy = appSettings.autoStartOnBoot,
             renderMode = BooleanConfigurable.RenderMode.Switch,
             describe = {
-                if (it) {
-                    Res.string.enabled.asStringSource()
-                } else {
-                    Res.string.disabled.asStringSource()
-                }
+                it.asToggledStringSource()
             }
         )
     }
@@ -623,11 +597,7 @@ object CommonSettings {
             backedBy = appSettings.notificationSound,
             renderMode = BooleanConfigurable.RenderMode.Switch,
             describe = {
-                if (it) {
-                    Res.string.enabled.asStringSource()
-                } else {
-                    Res.string.disabled.asStringSource()
-                }
+                it.asToggledStringSource()
             }
         )
     }
@@ -684,11 +654,7 @@ object CommonSettings {
             backedBy = appRepository.apiEnabled,
             renderMode = BooleanConfigurable.RenderMode.Switch,
             describe = {
-                if (it) {
-                    Res.string.enabled.asStringSource()
-                } else {
-                    Res.string.disabled.asStringSource()
-                }
+                it.asToggledStringSource()
             }
         )
     }
@@ -717,11 +683,7 @@ object CommonSettings {
             backedBy = appRepository.apiAuthEnabled,
             renderMode = BooleanConfigurable.RenderMode.Switch,
             describe = {
-                if (it) {
-                    Res.string.enabled.asStringSource()
-                } else {
-                    Res.string.disabled.asStringSource()
-                }
+                it.asToggledStringSource()
             }
         )
     }
@@ -732,11 +694,7 @@ object CommonSettings {
             description = Res.string.settings_api_auth_key_description.asStringSource(),
             backedBy = appRepository.apiAuthKey,
             describe = {
-                if (ApiKeyUtil.isValidKey(it)) {
-                    Res.string.enabled.asStringSource()
-                } else {
-                    Res.string.disabled.asStringSource()
-                }
+                ApiKeyUtil.isValidKey(it).asToggledStringSource()
             },
         )
     }

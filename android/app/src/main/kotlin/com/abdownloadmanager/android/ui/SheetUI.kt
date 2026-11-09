@@ -8,18 +8,15 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.areNavigationBarsVisible
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -72,8 +69,7 @@ fun ResponsiveDialogScope.SheetUI(
                         .consumeWindowInsets(verticalNavigationBarPaddingValues)
                 }
                 .imePadding()
-                .padding(mySpacings.smallSpace)
-        ) {
+                .padding(mySpacings.smallSpace)) {
             header()
             Spacer(Modifier.height(mySpacings.mediumSpace))
             Box(
@@ -143,7 +139,10 @@ fun SheetTitleWithDescription(
             text = title,
             fontWeight = FontWeight.Bold,
             fontSize = myTextSizes.xl,
-            modifier = Modifier.padding(start = mySpacings.mediumSpace, top = mySpacings.mediumSpace)
+            modifier = Modifier.padding(
+                start = mySpacings.mediumSpace,
+                top = mySpacings.mediumSpace
+            )
         )
         Text(
             text = description,

@@ -14,6 +14,64 @@
 
 ### Security
 
+## 1.11.4
+
+### Fixed
+
+- Fixed QR code rendering on dark themes.
+
+### Improved
+
+- Updated translations
+- Improved the speed of reading multiple QR codes.
+
+## 1.11.3
+
+### Added
+
+- Added a Network section to the desktop settings page
+
+### Fixed
+
+- Fixed incorrect category icon names being saved to storage. If you notice any mismatched category icons, right-click
+  the category and select **Reset to Defaults**
+
+### Improved
+
+- Updated translations
+- Improved the QR Code scanner UI/UX on Android (#1516)
+- Improved QR Code sharing, allowing users to share multiple download credentials across multiple QR Codes (#1520)
+
+## 1.11.2
+
+### Added
+
+- Add download location to the desktop download list table (disabled by default) (#1483)
+- Add an option to disable the `Add`/`Download` button while download link information is loading (#1508)
+- Add Start Queue, Stop Queue, and Stop All actions to the system tray
+- Add QR code support for sharing and scanning download links (#1511)
+
+### Fixed
+
+- Prevent download progress windows from being brought to the front when retrying a failed download (#1482)
+- Enforce API key authentication for specific routes (#1512)
+
+### Improved
+
+- Update translations
+
+## 1.11.1
+
+### Fixed
+
+- Directory picker crash on Linux (#1479)
+- Idle detection not working properly on Linux (#1479)
+
+### Improved
+
+- Updated translations
+- Minor improvements to the desktop settings UI
+
 ## 1.11.0
 
 ### Added
